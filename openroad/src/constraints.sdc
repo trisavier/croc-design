@@ -116,8 +116,12 @@ set_output_delay -min -add_delay -clock clk_sys [ expr $TCK_SYS * 0.10 ] [get_po
 set_output_delay -max -add_delay -clock clk_sys [ expr $TCK_SYS * 0.30 ] [get_ports {gpio*}]
 
 # The timing of these signals are not important but we want to keep them in-cycle
-set_output_delay -min -add_delay -clock clk_sys [ expr $TCK_SYS * 0.10 ] [get_ports {status_o unused*}]
-set_output_delay -max -add_delay -clock clk_sys [ expr $TCK_SYS * 0.10 ] [get_ports {status_o unused*}]
+set_output_delay -min -add_delay -clock clk_sys [ expr $TCK_SYS * 0.10 ] [get_ports {status_o unused* i2c_scl_io i2c_sda_io}]
+set_output_delay -max -add_delay -clock clk_sys [ expr $TCK_SYS * 0.10 ] [get_ports {status_o unused* i2c_scl_io i2c_sda_io}]
+
+# Avoid repair_design crash due to 0.0pF max_cap in SRAM liberty file
+set_max_capacitance 1.0 [get_pins $bank0_sram0/A_DOUT*]
+set_max_capacitance 1.0 [get_pins $bank1_sram0/A_DOUT*]
 
 
 ##########

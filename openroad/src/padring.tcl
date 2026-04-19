@@ -128,8 +128,8 @@ place_pad -row IO_NORTH -location [expr {$northStart -  6*$northPitch}] "pad_gpi
 place_pad -row IO_NORTH -location [expr {$northStart -  7*$northPitch}] "pad_gpio29_io"       ; # pin no:  8
 place_pad -row IO_NORTH -location [expr {$northStart -  8*$northPitch}] "pad_gpio30_io"       ; # pin no:  9
 place_pad -row IO_NORTH -location [expr {$northStart -  9*$northPitch}] "pad_gpio31_io"       ; # pin no: 10
-place_pad -row IO_NORTH -location [expr {$northStart - 10*$northPitch}] "pad_unused0_o"       ; # pin no: 11
-place_pad -row IO_NORTH -location [expr {$northStart - 11*$northPitch}] "pad_unused1_o"       ; # pin no: 12
+place_pad -row IO_NORTH -location [expr {$northStart - 10*$northPitch}] "pad_i2c_scl_io"      ; # pin no: 11
+place_pad -row IO_NORTH -location [expr {$northStart - 11*$northPitch}] "pad_i2c_sda_io"      ; # pin no: 12
 place_pad -row IO_NORTH -location [expr {$northStart - 12*$northPitch}] "pad_unused2_o"       ; # pin no: 13
 place_pad -row IO_NORTH -location [expr {$northStart - 13*$northPitch}] "pad_unused3_o"       ; # pin no: 14
 place_pad -row IO_NORTH -location [expr {$northStart - 14*$northPitch}] "pad_vss3"            ; # pin no: 15

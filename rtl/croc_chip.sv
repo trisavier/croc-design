@@ -54,8 +54,8 @@ module croc_chip import croc_pkg::*; #() (
   inout  wire gpio29_io,
   inout  wire gpio30_io,
   inout  wire gpio31_io,
-  output wire unused0_o,
-  output wire unused1_o,
+  inout  wire i2c_scl_io,
+  inout  wire i2c_sda_io,
   output wire unused2_o,
   output wire unused3_o,
 
@@ -98,6 +98,13 @@ module croc_chip import croc_pkg::*; #() (
     sg13g2_IOPadIn        pad_testmode_i   (.pad(testmode_i), .p2c(soc_testmode_i));
     sg13g2_IOPadOut16mA   pad_status_o     (.pad(status_o),   .c2p(soc_status_o));
 
+    // I2C signals
+    logic soc_i2c_scl_o, soc_i2c_scl_oe_o, soc_i2c_scl_i;
+    logic soc_i2c_sda_o, soc_i2c_sda_oe_o, soc_i2c_sda_i;
+
+    sg13g2_IOPadInOut30mA pad_i2c_scl_io   (.pad(i2c_scl_io), .c2p(soc_i2c_scl_o),  .p2c(soc_i2c_scl_i), .c2p_en(soc_i2c_scl_oe_o));
+    sg13g2_IOPadInOut30mA pad_i2c_sda_io   (.pad(i2c_sda_io), .c2p(soc_i2c_sda_o),  .p2c(soc_i2c_sda_i), .c2p_en(soc_i2c_sda_oe_o));
+
     sg13g2_IOPadInOut30mA pad_gpio0_io     (.pad(gpio0_io),  .c2p(soc_gpio_o[0]),  .p2c(soc_gpio_i[0]),  .c2p_en(soc_gpio_out_en_o[0]));
     sg13g2_IOPadInOut30mA pad_gpio1_io     (.pad(gpio1_io),  .c2p(soc_gpio_o[1]),  .p2c(soc_gpio_i[1]),  .c2p_en(soc_gpio_out_en_o[1]));
     sg13g2_IOPadInOut30mA pad_gpio2_io     (.pad(gpio2_io),  .c2p(soc_gpio_o[2]),  .p2c(soc_gpio_i[2]),  .c2p_en(soc_gpio_out_en_o[2]));
@@ -130,8 +137,6 @@ module croc_chip import croc_pkg::*; #() (
     sg13g2_IOPadInOut30mA pad_gpio29_io    (.pad(gpio29_io), .c2p(soc_gpio_o[29]), .p2c(soc_gpio_i[29]), .c2p_en(soc_gpio_out_en_o[29]));
     sg13g2_IOPadInOut30mA pad_gpio30_io    (.pad(gpio30_io), .c2p(soc_gpio_o[30]), .p2c(soc_gpio_i[30]), .c2p_en(soc_gpio_out_en_o[30]));
     sg13g2_IOPadInOut30mA pad_gpio31_io    (.pad(gpio31_io), .c2p(soc_gpio_o[31]), .p2c(soc_gpio_i[31]), .c2p_en(soc_gpio_out_en_o[31]));
-    sg13g2_IOPadOut16mA   pad_unused0_o    (.pad(unused0_o), .c2p(soc_status_o));
-    sg13g2_IOPadOut16mA   pad_unused1_o    (.pad(unused1_o), .c2p(soc_status_o));
     sg13g2_IOPadOut16mA   pad_unused2_o    (.pad(unused2_o), .c2p(soc_status_o));
     sg13g2_IOPadOut16mA   pad_unused3_o    (.pad(unused3_o), .c2p(soc_status_o));
 
@@ -173,6 +178,13 @@ module croc_chip import croc_pkg::*; #() (
 
     .uart_rx_i      ( soc_uart_rx_i ),
     .uart_tx_o      ( soc_uart_tx_o ),
+
+    .i2c_scl_o      ( soc_i2c_scl_o    ),
+    .i2c_scl_oe_o   ( soc_i2c_scl_oe_o ),
+    .i2c_scl_i      ( soc_i2c_scl_i    ),
+    .i2c_sda_o      ( soc_i2c_sda_o    ),
+    .i2c_sda_oe_o   ( soc_i2c_sda_oe_o ),
+    .i2c_sda_i      ( soc_i2c_sda_i    ),
 
     .gpio_i         ( soc_gpio_i        ),
     .gpio_o         ( soc_gpio_o        ),

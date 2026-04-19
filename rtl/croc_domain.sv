@@ -23,6 +23,14 @@ module croc_domain import croc_pkg::*; #(
   input  logic      uart_rx_i,
   output logic      uart_tx_o,
 
+  /// I2C interface (directly active-low for open-drain)
+  output logic      i2c_scl_o,     // SCL output (active-low drive)
+  output logic      i2c_scl_oe_o,  // SCL output enable
+  input  logic      i2c_scl_i,     // SCL input from pad
+  output logic      i2c_sda_o,     // SDA output (active-low drive)
+  output logic      i2c_sda_oe_o,  // SDA output enable
+  input  logic      i2c_sda_i,     // SDA input from pad
+
   input  logic [GpioCount-1:0] gpio_i,        // Input from GPIO pins
   output logic [GpioCount-1:0] gpio_o,        // Output to GPIO pins
   output logic [GpioCount-1:0] gpio_out_en_o, // Output enable signal; 0 -> input, 1 -> output
@@ -57,6 +65,7 @@ module croc_domain import croc_pkg::*; #(
   logic uart_irq;
   logic gpio_irq;
   logic idma_irq;
+  logic i2c_irq;
   logic [15:0] interrupts;
   always_comb begin
     interrupts    = '0;
@@ -64,7 +73,8 @@ module croc_domain import croc_pkg::*; #(
     interrupts[1] = uart_irq;
     interrupts[2] = gpio_irq;
     interrupts[3] = idma_irq;
-    interrupts[4+:NumExternalIrqs] = interrupts_i;
+    interrupts[4] = i2c_irq;
+    interrupts[5+:NumExternalIrqs] = interrupts_i;
   end
 
   // ----------------------------
@@ -185,6 +195,10 @@ module croc_domain import croc_pkg::*; #(
   sbr_obi_req_t idma_obi_cfg_req;
   sbr_obi_rsp_t idma_obi_cfg_rsp;
 
+  // I2C periph bus
+  sbr_obi_req_t i2c_obi_req;
+  sbr_obi_rsp_t i2c_obi_rsp;
+
   // CLINT bus
   sbr_obi_req_t clint_obi_req;
   sbr_obi_rsp_t clint_obi_rsp;
@@ -208,6 +222,8 @@ module croc_domain import croc_pkg::*; #(
   assign all_periph_obi_rsp[PeriphTimer]   = timer_obi_rsp;
   assign idma_obi_cfg_req                  = all_periph_obi_req[PeriphiDMA];
   assign all_periph_obi_rsp[PeriphiDMA]    = idma_obi_cfg_rsp;
+  assign i2c_obi_req                       = all_periph_obi_req[PeriphI2C];
+  assign all_periph_obi_rsp[PeriphI2C]     = i2c_obi_rsp;
   assign clint_obi_req                     = all_periph_obi_req[PeriphClint];
   assign all_periph_obi_rsp[PeriphClint]   = clint_obi_rsp;
   assign bootrom_obi_req                   = all_periph_obi_req[PeriphBootrom];
@@ -651,6 +667,25 @@ module croc_domain import croc_pkg::*; #(
     .rst_ni,
     .obi_req_i ( bootrom_obi_req ),
     .obi_rsp_o ( bootrom_obi_rsp )
+  );
+
+  // I2C
+  obi_i2c #(
+    .ObiCfg    ( SbrObiCfg     ),
+    .obi_req_t ( sbr_obi_req_t ),
+    .obi_rsp_t ( sbr_obi_rsp_t )
+  ) i_i2c (
+    .clk_i,
+    .rst_ni,
+    .obi_req_i ( i2c_obi_req ),
+    .obi_rsp_o ( i2c_obi_rsp ),
+    .irq_o     ( i2c_irq     ),
+    .scl_o     ( i2c_scl_o    ),
+    .scl_oe_o  ( i2c_scl_oe_o ),
+    .scl_i     ( i2c_scl_i    ),
+    .sda_o     ( i2c_sda_o    ),
+    .sda_oe_o  ( i2c_sda_oe_o ),
+    .sda_i     ( i2c_sda_i    )
   );
 
   // Peripheral space error subordinate

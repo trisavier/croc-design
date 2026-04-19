@@ -168,6 +168,7 @@
 ../rtl/gpio/gpio_reg_pkg.sv
 ../rtl/clint/clint_reg_pkg.sv
 ../rtl/obi_timer/obi_timer_reg_pkg.sv
+../rtl/obi_i2c/obi_i2c_reg_pkg.sv
 ../rtl/core_wrap.sv
 ../rtl/bootrom/bootrom.sv
 ../rtl/soc_ctrl/soc_ctrl_regs.sv
@@ -175,6 +176,8 @@
 ../rtl/gpio/gpio.sv
 ../rtl/clint/clint.sv
 ../rtl/obi_timer/obi_timer.sv
+../rtl/obi_i2c/obi_i2c_reg_top.sv
+../rtl/obi_i2c/obi_i2c.sv
 ../rtl/croc_domain.sv
 ../rtl/user_domain.sv
 ../rtl/croc_soc.sv

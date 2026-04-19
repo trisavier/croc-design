@@ -24,7 +24,7 @@ RISCV_STRIP   ?= $(RISCV_PREFIX)strip
 RISCV_FLAGS ?= -march=$(RISCV_MARCH) -mabi=$(RISCV_MABI) -mcmodel=medany \
 	-static -std=gnu99 -Os -nostdlib -fno-builtin -ffreestanding
 RISCV_CCFLAGS ?= $(RISCV_FLAGS) -Iinclude -I$(INCDIR) -I$(CURDIR)
-RISCV_LDFLAGS ?= -static -nostartfiles -lm -lgcc $(RISCV_FLAGS)
+RISCV_LDFLAGS ?= -static -nostartfiles -lgcc $(RISCV_FLAGS)
 
 
 # Directory defaults

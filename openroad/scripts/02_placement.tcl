@@ -54,6 +54,11 @@ repair_tie_fanout $tieLoPin
 utl::report "Remove buffers"
 remove_buffers
 
+# Workaround for RSZ-0169 (SRAM macro with 0.0pF max_cap)
+catch {
+  set_dont_touch [get_nets -of_objects [get_pins -of_objects [get_cells -hierarchical *gen_1024x32*] -filter "direction == output"]]
+}
+
 utl::report "Repair design"
 repair_design -verbose
 

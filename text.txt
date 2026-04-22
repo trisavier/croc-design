@@ -1,0 +1,11 @@
+# 1. Vào Docker
+docker exec -it iic-osic-tools_xvnc_uid_1000 bash
+
+# 2. Build firmware
+cd /foss/designs/test1/croc/sw
+make clean && make
+
+# 3. Build & chạy simulation
+cd /foss/designs/test1/croc/verilator
+./run_verilator.sh --build
+./run_verilator.sh --run ../sw/bin/hello_i2c.hex

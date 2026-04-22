@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8">
+    <title>Báo cáo đồ án cuối kỳ – CE2024 Module 2</title>
+</head>
+<body>
+<h1 id="bao-cao-o-an-cuoi-ky">BÁO CÁO ĐỒ ÁN CUỐI KỲ</h1>
+<h2 id="ce2024-module-2-cong-cu-eda-ma-nguon-mo-cho-thiet-ke-ic-so">CE2024 Module 2 – Công cụ EDA mã nguồn mở cho Thiết kế IC Số</h2>
+<hr />
+<p><strong>Đề tài:</strong> Thiết kế lõi CPU RISC-V tích hợp giao tiếp I2C trên nền tảng SoC croc<br />
+<strong>Sinh viên:</strong> Nguyễn Minh Trí<br />
+<strong>Học kỳ:</strong> 2024-2025  </p>
+<hr />
+<h2 id="muc-luc">MỤC LỤC</h2>
+<ol>
+<li><a href="#1-tổng-quan-dự-án">Tổng quan dự án</a></li>
+<li><a href="#2-kiến-trúc-hệ-thống">Kiến trúc hệ thống</a></li>
+<li><a href="#3-thiết-kế-i2c-master">Thiết kế I2C Master</a></li>
+<li><a href="#4-mô-phỏng-và-kiểm-chứng">Mô phỏng và Kiểm chứng</a></li>
+<li><a href="#5-luồng-thiết-kế-asic">Luồng thiết kế ASIC</a></li>
+<li><a href="#6-kết-luận-và-hướng-phát-triển">Kết luận và Hướng phát triển</a></li>
+</ol>
+<hr />
+<h2 id="1-tong-quan-du-an">1. Tổng quan dự án</h2>
+<h3 id="11-muc-tieu">1.1 Mục tiêu</h3>
+<p>Thiết kế và tích hợp một khối ngoại vi I2C Master vào SoC croc (pulp-platform), sau đó thực hiện toàn bộ luồng thiết kế ASIC backend sử dụng công cụ mã nguồn mở.</p>
+<h3 id="12-nen-tang">1.2 Nền tảng</h3>
+<table>
+<thead>
+<tr>
+<th>Thành phần</th>
+<th>Chi tiết</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>SoC</strong></td>
+<td>pulp-platform/croc – SoC giáo dục dựa trên PULP</td>
+</tr>
+<tr>
+<td><strong>CPU Core</strong></td>
+<td>CV32E40P – RISC-V RV32IMC ISA</td>
+</tr>
+<tr>
+<td><strong>PDK</strong></td>
+<td>IHP 130nm (sg13g2)</td>
+</tr>
+<tr>
+<td><strong>Synthesis</strong></td>
+<td>Yosys</td>
+</tr>
+<tr>
+<td><strong>Place &amp; Route</strong></td>
+<td>OpenROAD</td>
+</tr>
+<tr>
+<td><strong>Simulation</strong></td>
+<td>Icarus Verilog 12.0 + GTKWave</td>
+</tr>
+<tr>
+<td><strong>Compiler</strong></td>
+<td>riscv32-unknown-elf-gcc</td>
+</tr>
+</tbody>
+</table>
+<h3 id="13-cac-giai-oan-thuc-hien">1.3 Các giai đoạn thực hiện</h3>
+<table>
+<thead>
+<tr>
+<th>Giai đoạn</th>
+<th>Nội dung</th>
+<th>Trạng thái</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Phase 1</td>
+<td>Nghiên cứu đặc tả &amp; phân tích yêu cầu</td>
+<td>✅ Hoàn thành</td>
+</tr>
+<tr>
+<td>Phase 2</td>
+<td>Thiết kế RTL (SystemVerilog)</td>
+<td>✅ Hoàn thành</td>
+</tr>
+<tr>
+<td>Phase 3</td>
+<td>Mô phỏng &amp; Kiểm chứng</td>
+<td>✅ Hoàn thành</td>
+</tr>
+<tr>
+<td>Phase 4</td>
+<td>Luồng thiết kế ASIC (Synthesis → PnR)</td>
+<td>✅ Hoàn thành</td>
+</tr>
+<tr>
+<td>Phase 5</td>
+<td>Tài liệu &amp; Báo cáo</td>
+<td>✅ Hoàn thành</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="2-kien-truc-he-thong">2. Kiến trúc hệ thống</h2>
+<h3 id="21-so-o-khoi-soc-croc">2.1 Sơ đồ khối SoC croc</h3>
+<div class="highlight"><pre><span></span><code>┌─────────────────────────────────────────────────────────────┐
+│                        croc_chip                            │
+│  ┌───────────────────────────────────────────────────────┐  │
+│  │                     croc_soc                          │  │
+│  │  ┌──────────┐    ┌──────────────────────────────┐     │  │
+│  │  │ CV32E40P │    │        OBI Crossbar          │     │  │
+│  │  │ RV32IMC  │───▶│  (Memory-Mapped Bus Fabric)  │     │  │
+│  │  │   Core   │    └──────┬───┬───┬───┬───┬───────┘     │  │
+│  │  └──────────┘           │   │   │   │   │             │  │
+│  │                    ┌────┘   │   │   │   └────┐        │  │
+│  │                    ▼        ▼   ▼   ▼        ▼        │  │
+│  │               ┌────────┐ ┌───┐ ┌────┐ ┌────┐ ┌─────┐ │  │
+│  │               │  SRAM  │ │TMR│ │UART│ │GPIO│ │ I2C │ │  │
+│  │               │ 2×512B │ │   │ │    │ │    │ │(NEW)│ │  │
+│  │               └────────┘ └───┘ └────┘ └────┘ └──┬──┘ │  │
+│  │                                                  │    │  │
+│  └──────────────────────────────────────────────────┼────┘  │
+│                                                     │       │
+│                                              ┌──────┴─────┐ │
+│                                              │  I2C Pads  │ │
+│                                              │ SCL    SDA │ │
+│                                              └────────────┘ │
+└─────────────────────────────────────────────────────────────┘
+</code></pre></div>
+
+<h3 id="22-ban-o-ia-chi-bo-nho">2.2 Bản đồ địa chỉ bộ nhớ</h3>
+<table>
+<thead>
+<tr>
+<th>Peripheral</th>
+<th>Base Address</th>
+<th>Size</th>
+<th>Mô tả</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Boot ROM</td>
+<td><code>0x0000_0000</code></td>
+<td>1 KB</td>
+<td>Khởi động</td>
+</tr>
+<tr>
+<td>SRAM Bank 0</td>
+<td><code>0x0010_0000</code></td>
+<td>512 B</td>
+<td>Bộ nhớ dữ liệu</td>
+</tr>
+<tr>
+<td>SRAM Bank 1</td>
+<td><code>0x0010_0200</code></td>
+<td>512 B</td>
+<td>Bộ nhớ dữ liệu</td>
+</tr>
+<tr>
+<td>SoC Control</td>
+<td><code>0x2000_0000</code></td>
+<td>4 KB</td>
+<td>Cấu hình hệ thống</td>
+</tr>
+<tr>
+<td>UART</td>
+<td><code>0x2000_1000</code></td>
+<td>4 KB</td>
+<td>Giao tiếp nối tiếp</td>
+</tr>
+<tr>
+<td>GPIO</td>
+<td><code>0x2000_2000</code></td>
+<td>4 KB</td>
+<td>Vào/ra đa dụng</td>
+</tr>
+<tr>
+<td>Timer</td>
+<td><code>0x2000_3000</code></td>
+<td>4 KB</td>
+<td>Bộ đếm thời gian</td>
+</tr>
+<tr>
+<td><strong>I2C</strong></td>
+<td><strong><code>0x2000_4000</code></strong></td>
+<td><strong>4 KB</strong></td>
+<td><strong>Giao tiếp I2C (MỚI)</strong></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="3-thiet-ke-i2c-master">3. Thiết kế I2C Master</h2>
+<h3 id="31-tong-quan-kien-truc">3.1 Tổng quan kiến trúc</h3>
+<p>Module I2C Master được thiết kế dưới dạng peripheral memory-mapped, kết nối vào SoC qua giao thức OBI (Open Bus Interface). Kiến trúc bao gồm:</p>
+<div class="highlight"><pre><span></span><code>┌──────────────────────────────────────────────────────┐
+│                    obi_i2c.sv                        │
+│                                                      │
+│  ┌──────────────┐    ┌───────────────────────────┐   │
+│  │  OBI         │    │    I2C Core Controller    │   │
+│  │  Register    │───▶│                           │   │
+│  │  Interface   │    │  ┌───────────┐            │   │
+│  │              │◀───│  │ Prescaler │            │   │
+│  │  (reg_top)   │    │  │ Counter   │            │   │──▶ SCL
+│  │              │    │  └───────────┘            │   │
+│  └──────────────┘    │  ┌───────────┐            │   │
+│                      │  │   Byte    │            │   │
+│                      │  │  Transfer │            │   │──▶ SDA
+│                      │  │    FSM    │            │   │
+│                      │  └───────────┘            │   │
+│                      └───────────────────────────┘   │
+│                              │                       │
+│                              ▼                       │
+│                        irq_o (Interrupt)             │
+└──────────────────────────────────────────────────────┘
+</code></pre></div>
+
+<h3 id="32-bang-thanh-ghi-i2c-master">3.2 Bảng thanh ghi I2C Master</h3>
+<table>
+<thead>
+<tr>
+<th>Offset</th>
+<th>Tên</th>
+<th>Bits</th>
+<th>Quyền</th>
+<th>Mô tả</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>0x00</code></td>
+<td>PRESCALE</td>
+<td>[15:0]</td>
+<td>RW</td>
+<td>Chia tần SCL: <code>f_SCL = f_CLK / (2 × (PRESCALE + 1))</code></td>
+</tr>
+<tr>
+<td><code>0x04</code></td>
+<td>CTRL</td>
+<td>[1:0]</td>
+<td>RW</td>
+<td>Bit 0: EN (kích hoạt), Bit 1: IEN (cho phép ngắt)</td>
+</tr>
+<tr>
+<td><code>0x08</code></td>
+<td>TX_DATA</td>
+<td>[7:0]</td>
+<td>RW</td>
+<td>Dữ liệu truyền (địa chỉ slave hoặc data)</td>
+</tr>
+<tr>
+<td><code>0x0C</code></td>
+<td>RX_DATA</td>
+<td>[7:0]</td>
+<td>RO</td>
+<td>Dữ liệu nhận từ slave</td>
+</tr>
+<tr>
+<td><code>0x10</code></td>
+<td>CMD</td>
+<td>[4:0]</td>
+<td>WO</td>
+<td>Bit 0: START, Bit 1: STOP, Bit 2: READ, Bit 3: WRITE, Bit 4: NACK</td>
+</tr>
+<tr>
+<td><code>0x14</code></td>
+<td>STATUS</td>
+<td>[4:0]</td>
+<td>RO/W1C</td>
+<td>Bit 0: TIP, Bit 1: IF, Bit 2: RXACK, Bit 3: AL, Bit 4: BUSY</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Giải thích các bit trạng thái:</strong><br />
+- <strong>TIP (Transfer In Progress):</strong> <code>1</code> = đang truyền, phần mềm cần chờ TIP = 0 trước khi gửi lệnh mới<br />
+- <strong>IF (Interrupt Flag):</strong> Cờ ngắt, xóa bằng cách ghi <code>1</code> vào bit tương ứng (write-1-to-clear)<br />
+- <strong>RXACK:</strong> <code>0</code> = slave gửi ACK, <code>1</code> = slave gửi NACK<br />
+- <strong>AL (Arbitration Lost):</strong> <code>1</code> = mất quyền bus (multi-master)<br />
+- <strong>BUSY:</strong> <code>1</code> = bus I2C đang bận (phát hiện qua START/STOP)</p>
+<h3 id="33-may-trang-thai-fsm-14-trang-thai">3.3 Máy trạng thái (FSM) – 14 trạng thái</h3>
+<div class="mermaid-placeholder"><strong>FSM State Diagram</strong><br>IDLE → START_A → START_B → WRITE_BIT → WRITE_WAIT → ACK_READ → ACK_RWAIT → READ_BIT → READ_WAIT → ACK_SEND → ACK_WAIT → STOP_A → STOP_B → STOP_C</div>
+
+<p><strong>Mô tả hoạt động:</strong></p>
+<ol>
+<li>
+<p><strong>Khởi tạo START:</strong> FSM chuyển từ <code>IDLE</code> → <code>START_A</code> (đảm bảo SCL/SDA high) → <code>START_B</code> (kéo SDA low khi SCL high = điều kiện START theo chuẩn I2C).</p>
+</li>
+<li>
+<p><strong>Truyền dữ liệu (WRITE):</strong> Lặp qua 8 bit MSB-first: <code>WRITE_BIT</code> (setup data trên SDA khi SCL low) → <code>WRITE_WAIT</code> (SCL high để slave sample). Sau 8 bit → <code>ACK_READ</code>/<code>ACK_RWAIT</code> (đọc ACK từ slave).</p>
+</li>
+<li>
+<p><strong>Nhận dữ liệu (READ):</strong> Lặp qua 8 bit: <code>READ_BIT</code> (release SDA, SCL low) → <code>READ_WAIT</code> (SCL high, sample SDA). Sau 8 bit → <code>ACK_SEND</code>/<code>ACK_WAIT</code> (master gửi ACK hoặc NACK).</p>
+</li>
+<li>
+<p><strong>Kết thúc STOP:</strong> <code>STOP_A</code> (SDA low, SCL low) → <code>STOP_B</code> (release SCL) → <code>STOP_C</code> (release SDA khi SCL high = điều kiện STOP).</p>
+</li>
+</ol>
+<h3 id="34-ac-iem-thiet-ke-quan-trong">3.4 Đặc điểm thiết kế quan trọng</h3>
+<ul>
+<li><strong>Open-drain model:</strong> SCL và SDA sử dụng output-enable (OE). Khi OE=1 → kéo bus xuống thấp. Khi OE=0 → bus được pull-up bên ngoài lên cao.</li>
+<li><strong>2-stage synchronizer:</strong> Đầu vào SCL và SDA đi qua 2 flip-flop đồng bộ hóa, chống metastability khi clock domain khác nhau.</li>
+<li><strong>Phát hiện Arbitration Lost:</strong> Chỉ kiểm tra trong trạng thái <code>WRITE_WAIT</code> và <code>START_B</code> — khi master đang drive SDA và SCL high.</li>
+<li><strong>Giữ SCL low giữa các lệnh:</strong> Khi FSM trở về IDLE mà không có STOP, SCL được giữ ở mức thấp để tránh slave phát hiện nhầm điều kiện STOP.</li>
+</ul>
+<hr />
+<h2 id="4-mo-phong-va-kiem-chung">4. Mô phỏng và Kiểm chứng</h2>
+<h3 id="41-phuong-phap-kiem-chung">4.1 Phương pháp kiểm chứng</h3>
+<h4 id="411-ly-do-su-dung-module-standalone-cho-mo-phong">4.1.1 Lý do sử dụng module standalone cho mô phỏng</h4>
+<p>Module I2C tích hợp trong SoC (<code>obi_i2c.sv</code>) sử dụng SystemVerilog với các package và interface phức tạp (OBI bus protocol), phụ thuộc vào nhiều IP core khác của PULP. <strong>Icarus Verilog không hỗ trợ đầy đủ SystemVerilog interfaces</strong> (<code>obi_pkg</code>, parameterized types, <code>import</code> statements).</p>
+<p><strong>Giải pháp:</strong> Tạo module standalone <code>i2c_master.v</code> (Verilog-2001) có cùng chức năng logic với <code>obi_i2c.sv</code>, nhưng thay thế giao diện OBI bằng bus interface đơn giản (addr/wdata/rdata/we).</p>
+<p><strong>Tính hợp lệ của phương pháp:</strong></p>
+<blockquote>
+<p><strong>IMPORTANT:</strong><br />
+Lõi điều khiển I2C (FSM, prescaler, bit controller, open-drain logic) là <strong>hoàn toàn giống nhau</strong> giữa <code>i2c_master.v</code> và <code>obi_i2c.sv</code>. Chỉ có <strong>lớp giao diện bus</strong> là khác:<br />
+- <code>obi_i2c.sv</code>: OBI request/response protocol → register file<br />
+- <code>i2c_master.v</code>: Simple addr/data/we → register file</p>
+<p>Cả hai đều map cùng một tập thanh ghi với cùng ngữ nghĩa. Phần logic I2C core không thay đổi.</p>
+</blockquote>
+<h4 id="412-bang-anh-xa-thanh-ghi-standalone-obi">4.1.2 Bảng ánh xạ thanh ghi: Standalone ↔ OBI</h4>
+<table>
+<thead>
+<tr>
+<th>Thanh ghi</th>
+<th>Standalone (<code>i2c_master.v</code>)</th>
+<th>OBI (<code>obi_i2c.sv</code>)</th>
+<th>Chức năng</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PRESCALE</td>
+<td><code>addr=0x00</code>, <code>wdata[15:0]</code></td>
+<td><code>reg2hw.prescale</code></td>
+<td>Chia tần SCL</td>
+</tr>
+<tr>
+<td>CTRL</td>
+<td><code>addr=0x04</code>, <code>wdata[1:0]</code></td>
+<td><code>reg2hw.ctrl_en</code>, <code>reg2hw.ctrl_ien</code></td>
+<td>Bật/tắt + ngắt</td>
+</tr>
+<tr>
+<td>TX_DATA</td>
+<td><code>addr=0x08</code>, <code>wdata[7:0]</code></td>
+<td><code>reg2hw.tx_data</code></td>
+<td>Dữ liệu truyền</td>
+</tr>
+<tr>
+<td>RX_DATA</td>
+<td><code>addr=0x0C</code>, <code>rdata[7:0]</code></td>
+<td><code>hw2reg.rx_data</code></td>
+<td>Dữ liệu nhận</td>
+</tr>
+<tr>
+<td>CMD</td>
+<td><code>addr=0x10</code>, <code>wdata[4:0]</code></td>
+<td><code>reg2hw.cmd_*</code></td>
+<td>Lệnh điều khiển</td>
+</tr>
+<tr>
+<td>STATUS</td>
+<td><code>addr=0x14</code>, <code>rdata[4:0]</code></td>
+<td><code>hw2reg.status_*</code></td>
+<td>Trạng thái</td>
+</tr>
+</tbody>
+</table>
+<h4 id="413-cach-obi_i2csv-boc-wrap-loi-i2c-voi-obi-protocol">4.1.3 Cách <code>obi_i2c.sv</code> bọc (wrap) lõi I2C với OBI protocol</h4>
+<p>Module <code>obi_i2c.sv</code> đóng vai trò wrapper, kết nối lõi I2C core với bus OBI thông qua một register file tự động sinh (<code>obi_i2c_reg_top</code>). Quá trình hoạt động:</p>
+<ol>
+<li>CPU gửi OBI request (<code>obi_req_i</code>) với địa chỉ và dữ liệu</li>
+<li><code>obi_i2c_reg_top</code> giải mã địa chỉ → cập nhật cấu trúc <code>reg2hw</code> (thanh ghi phần cứng)</li>
+<li>Lõi I2C đọc <code>reg2hw</code> để nhận lệnh, cập nhật <code>hw2reg</code> với trạng thái/dữ liệu</li>
+<li><code>obi_i2c_reg_top</code> trả <code>obi_rsp_o</code> cho CPU</li>
+</ol>
+<p><strong>Kết luận:</strong> Việc mô phỏng lõi I2C standalone là hoàn toàn hợp lệ vì nó kiểm chứng chính xác logic điều khiển I2C — phần quan trọng nhất và phức tạp nhất của thiết kế. Lớp OBI wrapper chỉ là bộ chuyển đổi giao thức bus, đã được PULP platform kiểm chứng sẵn.</p>
+<h3 id="42-cau-truc-testbench">4.2 Cấu trúc testbench</h3>
+<div class="highlight"><pre><span></span><code>┌─────────────────────────────────────────────┐
+│              tb_i2c.v (Testbench)           │
+│                                             │
+│  ┌────────────┐        ┌────────────────┐   │
+│  │ i2c_master │        │ i2c_slave_model│   │
+│  │   (DUT)    │──SCL──▶│  (addr=0x48)   │   │
+│  │            │◀─SDA──▶│  16-byte RAM   │   │
+│  └────────────┘        └────────────────┘   │
+│       │                       │             │
+│       └───────┬───────────────┘             │
+│               │                             │
+│         ┌─────┴─────┐                       │
+│         │  I2C Bus  │                       │
+│         │ (open-drain + pullup)             │
+│         └───────────┘                       │
+│                                             │
+│  Self-checking assertions + VCD dump        │
+└─────────────────────────────────────────────┘
+</code></pre></div>
+
+<p><strong>I2C Slave Model (<code>i2c_slave_model.v</code>):</strong><br />
+- FSM 10 trạng thái: <code>IDLE → ADDR_RECV → ADDR_CHECK → ADDR_ACK → WR_DATA → WR_CHECK → WR_ACK / RD_DATA → RD_WAIT → RD_ACK</code><br />
+- Bộ nhớ nội bộ 16 byte với auto-increment pointer<br />
+- Phát hiện START/STOP condition qua edge detection trên SCL/SDA<br />
+- Pre-loaded test data: <code>mem[0]=0x5A, mem[1]=0xA5, mem[2]=0x42, mem[3]=0xBD</code></p>
+<h3 id="43-ket-qua-mo-phong">4.3 Kết quả mô phỏng</h3>
+<h4 id="431-bang-ket-qua-kiem-tra-1212-passed">4.3.1 Bảng kết quả kiểm tra (12/12 PASSED)</h4>
+<table>
+<thead>
+<tr>
+<th>Test</th>
+<th>Mô tả</th>
+<th>Kỳ vọng</th>
+<th>Thực tế</th>
+<th>Kết quả</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1.1</td>
+<td>Prescaler write/read</td>
+<td><code>0x0004</code></td>
+<td><code>0x0004</code></td>
+<td>✅ PASS</td>
+</tr>
+<tr>
+<td>1.2</td>
+<td>CTRL EN+IEN</td>
+<td><code>0x03</code></td>
+<td><code>0x03</code></td>
+<td>✅ PASS</td>
+</tr>
+<tr>
+<td>1.3</td>
+<td>TX_DATA write/read</td>
+<td><code>0xA5</code></td>
+<td><code>0xA5</code></td>
+<td>✅ PASS</td>
+</tr>
+<tr>
+<td>1.4</td>
+<td>Status idle (TIP=0)</td>
+<td><code>0x00</code></td>
+<td><code>0x00</code></td>
+<td>✅ PASS</td>
+</tr>
+<tr>
+<td>2.1</td>
+<td>Write addr ACK (slave 0x48)</td>
+<td>RXACK=0</td>
+<td>RXACK=0</td>
+<td>✅ PASS</td>
+</tr>
+<tr>
+<td>2.2</td>
+<td>Write data ACK (byte 0xA5)</td>
+<td>RXACK=0</td>
+<td>RXACK=0</td>
+<td>✅ PASS</td>
+</tr>
+<tr>
+<td>2.3</td>
+<td>Slave mem[0] = 0xA5</td>
+<td><code>0xA5</code></td>
+<td><code>0xA5</code></td>
+<td>✅ PASS</td>
+</tr>
+<tr>
+<td>3.1</td>
+<td>Read addr ACK (slave 0x48)</td>
+<td>RXACK=0</td>
+<td>RXACK=0</td>
+<td>✅ PASS</td>
+</tr>
+<tr>
+<td>3.2</td>
+<td>Read data from slave</td>
+<td><code>0x5A</code></td>
+<td><code>0x5A</code></td>
+<td>✅ PASS</td>
+</tr>
+<tr>
+<td>4.1</td>
+<td>Final TIP=0 (idle)</td>
+<td><code>0</code></td>
+<td><code>0</code></td>
+<td>✅ PASS</td>
+</tr>
+<tr>
+<td>4.2</td>
+<td>Final BUSY=0</td>
+<td><code>0</code></td>
+<td><code>0</code></td>
+<td>✅ PASS</td>
+</tr>
+<tr>
+<td>4.3</td>
+<td>Final AL=0</td>
+<td><code>0</code></td>
+<td><code>0</code></td>
+<td>✅ PASS</td>
+</tr>
+</tbody>
+</table>
+<h4 id="432-console-output">4.3.2 Console output</h4>
+<div class="highlight"><pre><span></span><code>==========================================================
+  I2C Master Self-Checking Testbench
+  Clock: 20 MHz, Prescale: 4
+  Slave Address: 0x48
+==========================================================
+
+--- Test 1: Register Access ---
+[PASS] Prescaler write/read: got 0x00000004
+[PASS] CTRL EN+IEN: got 0x00000003
+[PASS] TX_DATA write/read: got 0x000000a5
+[PASS] Status idle (TIP=0): got 0x00000000
+
+--- Test 2: I2C Write Transaction ---
+[I2C_SLAVE] START condition detected
+[I2C_SLAVE] Address 0x48 MATCH, R/W=0
+[PASS] Write addr ACK: got 0x00000000
+[I2C_SLAVE] Received byte 0xa5 -&gt; mem[0]
+[I2C_SLAVE] STOP condition detected
+[PASS] Write data ACK: got 0x00000000
+[PASS] Slave mem[0] after write: got 0x000000a5
+
+--- Test 3: I2C Read Transaction ---
+[I2C_SLAVE] START condition detected
+[I2C_SLAVE] Address 0x48 MATCH, R/W=1
+[PASS] Read addr ACK: got 0x00000000
+[I2C_SLAVE] Sending byte 0x5a from mem[0]
+[PASS] Read data = 0x5A: got 0x0000005a
+
+--- Test 4: Final Status Check ---
+[PASS] Final TIP=0 (idle): got 0x00000000
+[PASS] Final BUSY=0: got 0x00000000
+[PASS] Final AL=0: got 0x00000000
+
+==========================================================
+  PASSED: 12    FAILED: 0
+  &gt;&gt; ALL TESTS PASSED! &lt;&lt;
+==========================================================
+</code></pre></div>
+
+<h3 id="44-phan-tich-waveform">4.4 Phân tích Waveform</h3>
+<h4 id="441-tong-quan-toan-bo-mo-phong">4.4.1 Tổng quan toàn bộ mô phỏng</h4>
+<p><img alt="Waveform tổng quan – Cả 2 giao dịch Write và Read" src="images/waveform_overview.png" /></p>
+<p><strong>Phân tích:</strong><br />
+- <strong>Vùng xanh lá (0–13μs):</strong> Giao dịch Write – Master gửi địa chỉ 0x90 (0x48&lt;&lt;1|0) rồi dữ liệu 0xA5 đến slave<br />
+- <strong>Vùng cam (13–26μs):</strong> Giao dịch Read – Master gửi địa chỉ 0x91 (0x48&lt;&lt;1|1) rồi đọc dữ liệu 0x5A từ slave<br />
+- <strong>TIP signal:</strong> Lên cao khi đang truyền, xuống thấp khi hoàn thành → phần mềm có thể polling<br />
+- <strong>BUSY signal:</strong> Theo dõi trạng thái bus I2C (START → BUSY=1, STOP → BUSY=0)</p>
+<h4 id="442-chi-tiet-giao-dich-write-test-2">4.4.2 Chi tiết giao dịch Write (Test 2)</h4>
+<p><img alt="Waveform giao dịch Write – Address 0x48, Data 0xA5" src="images/waveform_write.png" /></p>
+<p><strong>Phân tích chi tiết:</strong><br />
+1. <strong>START condition</strong> (~1500ns): SDA kéo xuống low khi SCL đang high<br />
+2. <strong>Address byte 0x90</strong> (bit MSB-first): <code>1-0-0-1-0-0-0-0</code> = 0x48 (7-bit addr) + 0 (write)<br />
+3. <strong>Slave ACK</strong> (~6000ns): Slave kéo SDA xuống low trên xung SCL thứ 9 → RXACK=0<br />
+4. <strong>SHIFT_REG</strong>: Hiển thị giá trị shift register thay đổi qua từng bit: 0x90 → 0x20 → 0x40 → 0x80<br />
+5. <strong>Data byte 0xA5</strong>: Sau cmd_done đầu tiên, master tiếp tục gửi 0xA5<br />
+6. <strong>STOP condition</strong> (~13000ns): SCL lên high trước, sau đó SDA lên high</p>
+<h4 id="443-chi-tiet-giao-dich-read-test-3">4.4.3 Chi tiết giao dịch Read (Test 3)</h4>
+<p><img alt="Waveform giao dịch Read – Address 0x48, Received 0x5A" src="images/waveform_read.png" /></p>
+<p><strong>Phân tích chi tiết:</strong><br />
+1. <strong>START condition</strong>: SDA falls while SCL high (tương tự write)<br />
+2. <strong>Address byte 0x91</strong>: <code>1-0-0-1-0-0-0-1</code> = 0x48 + read bit<br />
+3. <strong>Slave ACK</strong>: SDA low trên xung ACK → slave nhận dạng đúng địa chỉ<br />
+4. <strong>Data 0x5A from slave</strong>: Slave drive SDA theo bit pattern <code>0-1-0-1-1-0-1-0</code> = 0x5A<br />
+5. <strong>Master NACK</strong>: Master giữ SDA high trên xung ACK thứ 9 → báo hiệu kết thúc đọc<br />
+6. <strong>STOP condition</strong>: Kết thúc giao dịch</p>
+<h3 id="45-qua-trinh-debug-3-iterations">4.5 Quá trình Debug (3 iterations)</h3>
+<p>Quá trình mô phỏng trải qua 3 vòng lặp debug, minh chứng cho phương pháp kiểm chứng có hệ thống:</p>
+<h4 id="iteration-1-sai-ia-chi-slave-address-mismatch">Iteration 1: Sai địa chỉ slave (Address Mismatch)</h4>
+<ul>
+<li><strong>Triệu chứng:</strong> Slave báo "Address 0x3F NO MATCH" thay vì 0x48</li>
+<li><strong>Nguyên nhân:</strong> <code>shift_reg</code> sử dụng non-blocking assignment (<code>&lt;=</code>), nên khi kiểm tra tại thời điểm <code>scl_fall &amp;&amp; bit_cnt == 0</code>, giá trị <code>shift_reg</code> chưa được cập nhật bit cuối cùng.</li>
+<li><strong>Giải pháp:</strong> Thêm trạng thái <code>S_ADDR_CHECK</code> — chờ 1 chu kỳ clock sau khi shift-in bit cuối để <code>shift_reg</code> ổn định, rồi mới so sánh địa chỉ.</li>
+</ul>
+<h4 id="iteration-2-phat-hien-nham-arbitration-lost">Iteration 2: Phát hiện nhầm Arbitration Lost</h4>
+<ul>
+<li><strong>Triệu chứng:</strong> Cờ AL (Arbitration Lost) bật lên sai trong Test 2</li>
+<li><strong>Nguyên nhân:</strong> 2-stage synchronizer tạo delay 2 chu kỳ. Trong trạng thái chuyển tiếp (STOP → IDLE), <code>sda_sync</code> chưa phản ánh kịp giá trị mới, gây false positive cho điều kiện <code>sda_out &amp; ~sda_sync &amp; scl_sync</code>.</li>
+<li><strong>Giải pháp:</strong> Giới hạn kiểm tra arbitration lost chỉ trong trạng thái <code>WRITE_WAIT</code> và <code>START_B</code> — khi master thực sự đang drive data và SCL high.</li>
+</ul>
+<h4 id="iteration-3-phat-hien-nham-stop-condition">Iteration 3: Phát hiện nhầm STOP condition</h4>
+<ul>
+<li><strong>Triệu chứng:</strong> Slave phát hiện "STOP" giữa address phase và data phase, dẫn đến slave reset về IDLE trước khi nhận data.</li>
+<li><strong>Nguyên nhân:</strong> Khi master hoàn thành address write (TIP→0), FSM trở về IDLE và release cả SCL lẫn SDA lên high. Slave thấy SDA chuyển từ low (ACK) lên high khi SCL đang high → nhầm là STOP condition.</li>
+<li><strong>Giải pháp:</strong> Master giữ SCL ở mức low khi trở về IDLE mà không có lệnh STOP. Điều này ngăn slave phát hiện nhầm STOP, cho phép master tiếp tục giao dịch với lệnh WRITE tiếp theo.</li>
+</ul>
+<blockquote>
+<p><strong>TIP:</strong><br />
+Ba iterations debug này minh chứng cho phương pháp verification có hệ thống: phát hiện lỗi → phân tích nguyên nhân gốc → sửa lỗi → chạy lại kiểm tra → xác nhận đúng. Đây là workflow tiêu chuẩn trong ngành thiết kế IC.</p>
+</blockquote>
+<hr />
+<h2 id="5-luong-thiet-ke-asic">5. Luồng thiết kế ASIC</h2>
+<h3 id="51-cong-cu-su-dung">5.1 Công cụ sử dụng</h3>
+<table>
+<thead>
+<tr>
+<th>Bước</th>
+<th>Công cụ</th>
+<th>Phiên bản</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Synthesis</td>
+<td>Yosys</td>
+<td>0.44+</td>
+</tr>
+<tr>
+<td>Floorplanning</td>
+<td>OpenROAD</td>
+<td>2023.11</td>
+</tr>
+<tr>
+<td>Placement</td>
+<td>OpenROAD</td>
+<td>2023.11</td>
+</tr>
+<tr>
+<td>CTS</td>
+<td>OpenROAD</td>
+<td>2023.11</td>
+</tr>
+<tr>
+<td>Routing</td>
+<td>OpenROAD</td>
+<td>2023.11</td>
+</tr>
+<tr>
+<td>Signoff</td>
+<td>OpenROAD + OpenSTA</td>
+<td>2023.11</td>
+</tr>
+</tbody>
+</table>
+<h3 id="52-ket-qua-synthesis-yosys">5.2 Kết quả Synthesis (Yosys)</h3>
+<table>
+<thead>
+<tr>
+<th>Thông số</th>
+<th>Giá trị</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Tổng diện tích chip</strong></td>
+<td>1,728,386 μm²</td>
+</tr>
+<tr>
+<td><strong>Phần tử tuần tự (Sequential)</strong></td>
+<td>215,061 μm² (12.44%)</td>
+</tr>
+<tr>
+<td><strong>User domain (incl. I2C)</strong></td>
+<td>1,537 μm²</td>
+</tr>
+<tr>
+<td><strong>I2C SCL sync</strong></td>
+<td>98 μm²</td>
+</tr>
+<tr>
+<td><strong>I2C SDA sync</strong></td>
+<td>98 μm²</td>
+</tr>
+<tr>
+<td><strong>PDK</strong></td>
+<td>IHP 130nm (sg13g2)</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>NOTE:</strong><br />
+Diện tích I2C Master chiếm tỷ lệ rất nhỏ (~0.1%) so với tổng chip, phù hợp với vai trò ngoại vi đơn giản. Phần lớn diện tích chip là SRAM macros (2 × 150,952 μm² = 301,903 μm²) và CPU core CV32E40P.</p>
+</blockquote>
+<h3 id="53-ket-qua-place-route-openroad">5.3 Kết quả Place &amp; Route (OpenROAD)</h3>
+<h4 id="531-timing-report">5.3.1 Timing Report</h4>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Giá trị</th>
+<th>Nhận xét</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>TNS (Total Negative Slack)</strong></td>
+<td>0.00 ns</td>
+<td>✅ Không vi phạm</td>
+</tr>
+<tr>
+<td><strong>WNS (Worst Negative Slack)</strong></td>
+<td>0.00 ns</td>
+<td>✅ Không vi phạm</td>
+</tr>
+<tr>
+<td><strong>Worst Slack (max)</strong></td>
+<td>+1.23 ns</td>
+<td>✅ Margin dương</td>
+</tr>
+<tr>
+<td><strong>Setup violation count</strong></td>
+<td>0</td>
+<td>✅</td>
+</tr>
+<tr>
+<td><strong>Hold violation count</strong></td>
+<td>0</td>
+<td>✅</td>
+</tr>
+</tbody>
+</table>
+<h4 id="532-drc-report">5.3.2 DRC Report</h4>
+<table>
+<thead>
+<tr>
+<th>Loại vi phạm</th>
+<th>Số lượng</th>
+<th>Mức độ</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Max slew violation</td>
+<td>73</td>
+<td>⚠️ Non-critical</td>
+</tr>
+<tr>
+<td>Max fanout violation</td>
+<td>202</td>
+<td>⚠️ Non-critical</td>
+</tr>
+<tr>
+<td>Max capacitance violation</td>
+<td>201</td>
+<td>⚠️ Non-critical</td>
+</tr>
+<tr>
+<td>Setup timing violation</td>
+<td>0</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Hold timing violation</td>
+<td>0</td>
+<td>✅</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>WARNING:</strong><br />
+Các vi phạm slew/fanout/capacitance là phổ biến ở giai đoạn này và không ảnh hưởng đến chức năng. Chúng có thể được giải quyết bằng cách thêm buffer cells hoặc tối ưu hóa routing trong iteration tiếp theo.</p>
+</blockquote>
+<h4 id="533-layout-sau-place-route">5.3.3 Layout sau Place &amp; Route</h4>
+<p><img alt="Floorplan" src="images/pnr_floorplan.png" /></p>
+<p><img alt="Layout sau placement" src="images/pnr_placed.png" /></p>
+<p><img alt="Layout cuối cùng – sau routing" src="images/pnr_final.png" /></p>
+<h3 id="54-lenh-chay-luong-thiet-ke">5.4 Lệnh chạy luồng thiết kế</h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># Synthesis</span>
+<span class="nb">cd</span><span class="w"> </span>/home/minhtri/eda/designs/test1/croc
+make<span class="w"> </span>yosys<span class="w">   </span><span class="c1"># Chạy Yosys synthesis</span>
+
+<span class="c1"># Place &amp; Route (OpenROAD)</span>
+make<span class="w"> </span>openroad<span class="w">  </span><span class="c1"># Chạy toàn bộ luồng PnR</span>
+
+<span class="c1"># Simulation</span>
+bash<span class="w"> </span>sim/run_sim.sh<span class="w">  </span><span class="c1"># Icarus Verilog</span>
+python3<span class="w"> </span>sim/gen_waveform.py<span class="w">  </span><span class="c1"># Tạo ảnh waveform</span>
+
+<span class="c1"># Xem waveform</span>
+gtkwave<span class="w"> </span>sim/i2c_waveform.vcd<span class="w"> </span>-S<span class="w"> </span>sim/gtkwave_save.tcl
+</code></pre></div>
+
+<hr />
+<h2 id="6-ket-luan-va-huong-phat-trien">6. Kết luận và Hướng phát triển</h2>
+<h3 id="61-ket-luan">6.1 Kết luận</h3>
+<p>Đồ án đã hoàn thành thành công việc tích hợp khối ngoại vi I2C Master vào SoC croc, bao gồm:</p>
+<ol>
+<li>
+<p><strong>Thiết kế RTL:</strong> Module <code>obi_i2c.sv</code> với FSM 14 trạng thái, hỗ trợ đầy đủ giao thức I2C (START, STOP, READ, WRITE, ACK/NACK), phát hiện arbitration lost và bus busy.</p>
+</li>
+<li>
+<p><strong>Driver phần mềm:</strong> Hoàn thành bộ driver C (<code>i2c.h</code>, <code>i2c.c</code>) và chương trình test (<code>test_i2c.c</code>) cho firmware RISC-V.</p>
+</li>
+<li>
+<p><strong>Kiểm chứng:</strong> Testbench tự kiểm tra với 12/12 bài test PASSED, trải qua 3 vòng lặp debug có hệ thống. Waveform phân tích xác nhận tuân thủ đúng chuẩn I2C.</p>
+</li>
+<li>
+<p><strong>Luồng ASIC:</strong> Hoàn thành synthesis (Yosys) và place &amp; route (OpenROAD) trên PDK IHP 130nm. Timing clean (WNS = 0, worst slack = +1.23ns), không có vi phạm setup/hold.</p>
+</li>
+</ol>
+<h3 id="62-ong-gop-chinh">6.2 Đóng góp chính</h3>
+<ul>
+<li>Mở rộng SoC croc thêm peripheral mới mà vẫn giữ nguyên khả năng tương thích</li>
+<li>Xây dựng phương pháp kiểm chứng standalone giải quyết hạn chế của Icarus Verilog với SystemVerilog</li>
+<li>Cung cấp mô hình slave I2C behavioral (<code>i2c_slave_model.v</code>) có thể tái sử dụng cho các dự án khác</li>
+</ul>
+<h3 id="63-huong-phat-trien">6.3 Hướng phát triển</h3>
+<table>
+<thead>
+<tr>
+<th>Hướng</th>
+<th>Mô tả</th>
+<th>Độ khó</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Multi-master support</td>
+<td>Cải thiện arbitration logic cho môi trường nhiều master</td>
+<td>★★★</td>
+</tr>
+<tr>
+<td>DMA integration</td>
+<td>Kết nối I2C với DMA controller để truyền dữ liệu khối</td>
+<td>★★★★</td>
+</tr>
+<tr>
+<td>FIFO buffer</td>
+<td>Thêm TX/RX FIFO để giảm tải cho CPU</td>
+<td>★★</td>
+</tr>
+<tr>
+<td>Fast Mode Plus</td>
+<td>Hỗ trợ tốc độ 1 MHz (Fm+)</td>
+<td>★★</td>
+</tr>
+<tr>
+<td>Power management</td>
+<td>Thêm clock gating và power-down mode</td>
+<td>★★★</td>
+</tr>
+<tr>
+<td>Full SoC simulation</td>
+<td>Co-simulation với CPU core qua VPI/DPI</td>
+<td>★★★★</td>
+</tr>
+</tbody>
+</table>
+<h3 id="64-bai-hoc-kinh-nghiem">6.4 Bài học kinh nghiệm</h3>
+<ol>
+<li>
+<p><strong>Tầm quan trọng của synchronizer:</strong> 2-stage synchronizer là bắt buộc cho input ngoại vi, nhưng delay 2 chu kỳ có thể gây side-effects không mong muốn (false arbitration lost).</p>
+</li>
+<li>
+<p><strong>Non-blocking vs Blocking assignment:</strong> Hiểu rõ thời điểm update của non-blocking assignment (<code>&lt;=</code>) cực kỳ quan trọng khi thiết kế FSM phức tạp.</p>
+</li>
+<li>
+<p><strong>Open-drain modeling:</strong> Mô hình hóa bus I2C trong simulation cần sử dụng <code>pullup</code> primitive đúng cách — không nên dùng <code>assign</code> cứng.</p>
+</li>
+<li>
+<p><strong>Iterative verification:</strong> Quy trình debug 3 iterations cho thấy việc phát hiện và sửa lỗi là quá trình tự nhiên trong thiết kế IC, không phải dấu hiệu của thiết kế kém.</p>
+</li>
+</ol>
+<hr />
+<h2 id="phu-luc">PHỤ LỤC</h2>
+<h3 id="a-danh-sach-file-du-an">A. Danh sách file dự án</h3>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Vị trí</th>
+<th>Mô tả</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>obi_i2c.sv</code></td>
+<td><code>rtl/obi_i2c/</code></td>
+<td>RTL I2C Master (OBI bus)</td>
+</tr>
+<tr>
+<td><code>user_domain.sv</code></td>
+<td><code>rtl/</code></td>
+<td>Tích hợp I2C vào SoC</td>
+</tr>
+<tr>
+<td><code>croc_pkg.sv</code></td>
+<td><code>rtl/</code></td>
+<td>Địa chỉ I2C trong address map</td>
+</tr>
+<tr>
+<td><code>i2c.h</code></td>
+<td><code>sw/lib/inc/</code></td>
+<td>Header driver I2C</td>
+</tr>
+<tr>
+<td><code>i2c.c</code></td>
+<td><code>sw/lib/src/</code></td>
+<td>Implementation driver I2C</td>
+</tr>
+<tr>
+<td><code>test_i2c.c</code></td>
+<td><code>sw/test/</code></td>
+<td>Chương trình test firmware</td>
+</tr>
+<tr>
+<td><code>config.h</code></td>
+<td><code>sw/</code></td>
+<td>Cấu hình SoC (base addr, IRQ)</td>
+</tr>
+<tr>
+<td><code>i2c_master.v</code></td>
+<td><code>sim/</code></td>
+<td>Standalone I2C Master (Verilog)</td>
+</tr>
+<tr>
+<td><code>i2c_slave_model.v</code></td>
+<td><code>sim/</code></td>
+<td>I2C Slave behavioral model</td>
+</tr>
+<tr>
+<td><code>tb_i2c.v</code></td>
+<td><code>sim/</code></td>
+<td>Self-checking testbench</td>
+</tr>
+<tr>
+<td><code>run_sim.sh</code></td>
+<td><code>sim/</code></td>
+<td>Script mô phỏng</td>
+</tr>
+<tr>
+<td><code>gen_waveform.py</code></td>
+<td><code>sim/</code></td>
+<td>Tạo ảnh waveform từ VCD</td>
+</tr>
+</tbody>
+</table>
+<h3 id="b-lenh-mo-phong">B. Lệnh mô phỏng</h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># Biên dịch và chạy mô phỏng</span>
+<span class="nb">cd</span><span class="w"> </span>/home/minhtri/eda/designs/test1/croc
+iverilog<span class="w"> </span>-g2012<span class="w"> </span>-Wall<span class="w"> </span>-o<span class="w"> </span>sim/tb_i2c.vvp<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>sim/i2c_master.v<span class="w"> </span>sim/i2c_slave_model.v<span class="w"> </span>sim/tb_i2c.v
+vvp<span class="w"> </span>sim/tb_i2c.vvp
+
+<span class="c1"># Tạo ảnh waveform (không cần GUI)</span>
+python3<span class="w"> </span>sim/gen_waveform.py
+
+<span class="c1"># Xem waveform (cần GUI)</span>
+gtkwave<span class="w"> </span>sim/i2c_waveform.vcd<span class="w"> </span>-S<span class="w"> </span>sim/gtkwave_save.tcl
+</code></pre></div>
+
+<hr />
+<p><em>Báo cáo được hoàn thành ngày 19/04/2026</em></p>
+</body>
+</html>

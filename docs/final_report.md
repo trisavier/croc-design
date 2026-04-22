@@ -329,7 +329,7 @@ Module `obi_i2c.sv` đóng vai trò wrapper, kết nối lõi I2C core với bus
 
 #### 4.4.1 Tổng quan toàn bộ mô phỏng
 
-![Waveform tổng quan – Cả 2 giao dịch Write và Read](/home/minhtri/.gemini/antigravity/brain/49fa3db7-a216-4bbd-b90e-a809112acd90/waveform_overview.png)
+![Waveform tổng quan – Cả 2 giao dịch Write và Read](images/waveform_overview.png)
 
 **Phân tích:**
 - **Vùng xanh lá (0–13μs):** Giao dịch Write – Master gửi địa chỉ 0x90 (0x48<<1|0) rồi dữ liệu 0xA5 đến slave
@@ -339,7 +339,7 @@ Module `obi_i2c.sv` đóng vai trò wrapper, kết nối lõi I2C core với bus
 
 #### 4.4.2 Chi tiết giao dịch Write (Test 2)
 
-![Waveform giao dịch Write – Address 0x48, Data 0xA5](/home/minhtri/.gemini/antigravity/brain/49fa3db7-a216-4bbd-b90e-a809112acd90/waveform_write.png)
+![Waveform giao dịch Write – Address 0x48, Data 0xA5](images/waveform_write.png)
 
 **Phân tích chi tiết:**
 1. **START condition** (~1500ns): SDA kéo xuống low khi SCL đang high
@@ -351,7 +351,7 @@ Module `obi_i2c.sv` đóng vai trò wrapper, kết nối lõi I2C core với bus
 
 #### 4.4.3 Chi tiết giao dịch Read (Test 3)
 
-![Waveform giao dịch Read – Address 0x48, Received 0x5A](/home/minhtri/.gemini/antigravity/brain/49fa3db7-a216-4bbd-b90e-a809112acd90/waveform_read.png)
+![Waveform giao dịch Read – Address 0x48, Received 0x5A](images/waveform_read.png)
 
 **Phân tích chi tiết:**
 1. **START condition**: SDA falls while SCL high (tương tự write)
@@ -439,11 +439,11 @@ Quá trình mô phỏng trải qua 3 vòng lặp debug, minh chứng cho phươn
 
 #### 5.3.3 Layout sau Place & Route
 
-![Floorplan](/home/minhtri/.gemini/antigravity/brain/49fa3db7-a216-4bbd-b90e-a809112acd90/pnr_floorplan.png)
+![Floorplan](images/pnr_floorplan.png)
 
-![Layout sau placement](/home/minhtri/.gemini/antigravity/brain/49fa3db7-a216-4bbd-b90e-a809112acd90/pnr_placed.png)
+![Layout sau placement](images/pnr_placed.png)
 
-![Layout cuối cùng – sau routing](/home/minhtri/.gemini/antigravity/brain/49fa3db7-a216-4bbd-b90e-a809112acd90/pnr_final.png)
+![Layout cuối cùng – sau routing](images/pnr_final.png)
 
 ### 5.4 Lệnh chạy luồng thiết kế
 

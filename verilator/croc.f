@@ -9,11 +9,16 @@
 +define+TARGET_VERILATOR
 +define+VERILATOR=1
 +define+COMMON_CELLS_ASSERTS_OFF=1
+// Package(common_verification) Target(any(simulation, verilator))
 ../rtl/common_verification/clk_rst_gen.sv
+// Package(tech_cells_generic) Target(all(any(tech_cells_generic_include_tc_sram, all(not(asic), not(fpga))), not(tech_cells_generic_exclude_tc_sram)))
 ../rtl/tech_cells_generic/tc_sram.sv
 ../rtl/tech_cells_generic/tc_sram_impl.sv
+// Package(tech_cells_generic) Target(all(any(tech_cells_generic_include_tc_clk, all(not(asic), not(fpga))), not(tech_cells_generic_exclude_tc_clk)))
 ../rtl/tech_cells_generic/tc_clk.sv
+// Package(common_cells) Target(*)
 ../rtl/common_cells/binary_to_gray.sv
+// Package(common_cells) Target(not(all(vivado_ipx, xilinx)))
 ../rtl/common_cells/cb_filter_pkg.sv
 ../rtl/common_cells/cc_onehot.sv
 ../rtl/common_cells/cdc_reset_ctrlr_pkg.sv
@@ -66,6 +71,7 @@
 ../rtl/common_cells/addr_decode.sv
 ../rtl/common_cells/addr_decode_napot.sv
 ../rtl/common_cells/multiaddr_decode.sv
+// Package(common_cells) Target(not(all(vivado_ipx, xilinx)))
 ../rtl/common_cells/cb_filter.sv
 ../rtl/common_cells/cdc_fifo_2phase.sv
 ../rtl/common_cells/clk_mux_glitch_free.sv
@@ -96,6 +102,7 @@
 ../rtl/common_cells/stream_arbiter.sv
 ../rtl/common_cells/stream_omega_net.sv
 ../rtl/common_cells/mem_to_banks.sv
+// Package(obi) Target(*)
 ../rtl/obi/obi_pkg.sv
 ../rtl/obi/obi_intf.sv
 ../rtl/obi/obi_rready_converter.sv
@@ -108,7 +115,9 @@
 ../rtl/obi/obi_mux.sv
 ../rtl/obi/obi_sram_shim.sv
 ../rtl/obi/obi_xbar.sv
+// Package(apb) Target(*)
 ../rtl/apb/apb_pkg.sv
+// Package(cve2) Target(*)
 ../rtl/cve2/cve2_pkg.sv
 ../rtl/cve2/cve2_alu.sv
 ../rtl/cve2/cve2_branch_predict.sv
@@ -130,6 +139,7 @@
 ../rtl/cve2/cve2_prefetch_buffer.sv
 ../rtl/cve2/cve2_if_stage.sv
 ../rtl/cve2/cve2_core.sv
+// Package(idma) Target(*)
 ../rtl/idma/idma_pkg.sv
 ../rtl/idma/idma_channel_coupler.sv
 ../rtl/idma/idma_dataflow_element.sv
@@ -142,6 +152,7 @@
 ../rtl/idma/idma_legalizer_rw_obi.sv
 ../rtl/idma/idma_backend_rw_obi.sv
 ../rtl/idma/croc_idma.sv
+// Package(obi_peripherals) Target(*)
 ../rtl/obi_uart/obi_uart_pkg.sv
 ../rtl/obi_uart/obi_uart_baudgen.sv
 ../rtl/obi_uart/obi_uart_interrupts.sv
@@ -150,18 +161,23 @@
 ../rtl/obi_uart/obi_uart_tx.sv
 ../rtl/obi_uart/obi_uart_register.sv
 ../rtl/obi_uart/obi_uart.sv
+// Package(riscv-dbg) Target(*)
 ../rtl/riscv-dbg/dm_pkg.sv
 ../rtl/riscv-dbg/debug_rom/debug_rom.sv
 ../rtl/riscv-dbg/debug_rom/debug_rom_one_scratch.sv
 ../rtl/riscv-dbg/dm_csrs.sv
 ../rtl/riscv-dbg/dm_mem.sv
 ../rtl/riscv-dbg/dmi_cdc.sv
+// Package(riscv-dbg) Target(not(all(bscane, xilinx)))
 ../rtl/riscv-dbg/dmi_jtag_tap.sv
+// Package(riscv-dbg) Target(*)
 ../rtl/riscv-dbg/dm_sba.sv
 ../rtl/riscv-dbg/dm_top.sv
 ../rtl/riscv-dbg/dmi_jtag.sv
 ../rtl/riscv-dbg/dm_obi_top.sv
+// Package(riscv-dbg) Target(verilator)
 ../rtl/riscv-dbg/tb/jtag_test_simple.sv
+// Package(croc_soc) Target(*)
 ../rtl/croc_pkg.sv
 ../rtl/user_pkg.sv
 ../rtl/soc_ctrl/soc_ctrl_regs_pkg.sv
@@ -169,6 +185,7 @@
 ../rtl/clint/clint_reg_pkg.sv
 ../rtl/obi_timer/obi_timer_reg_pkg.sv
 ../rtl/obi_i2c/obi_i2c_reg_pkg.sv
+// Package(croc_soc) Target(not(netlist_yosys))
 ../rtl/core_wrap.sv
 ../rtl/bootrom/bootrom.sv
 ../rtl/soc_ctrl/soc_ctrl_regs.sv
@@ -181,7 +198,9 @@
 ../rtl/croc_domain.sv
 ../rtl/user_domain.sv
 ../rtl/croc_soc.sv
+// Package(croc_soc) Target(not(fpga))
 ../rtl/croc_chip.sv
+// Package(croc_soc) Target(any(simulation, verilator))
 ../rtl/test/tb_croc_pkg.sv
 ../rtl/test/croc_vip.sv
 ../rtl/test/tb_croc_soc.sv

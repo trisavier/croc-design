@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Đánh Giá Tiến Độ — CE2024 Module 2</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Inter',sans-serif; background:#0d1117; color:#c9d1d9; line-height:1.7; padding:2rem; max-width:900px; margin:0 auto; }
+  h1 { color:#58a6ff; font-size:1.8rem; border-bottom:2px solid #30363d; padding-bottom:.5rem; margin-bottom:1rem; }
+  h2 { color:#79c0ff; font-size:1.2rem; margin-top:1.5rem; margin-bottom:.6rem; border-left:4px solid #58a6ff; padding-left:.8rem; }
+  h3 { color:#d2a8ff; font-size:1rem; margin-top:1rem; }
+  table { width:100%; border-collapse:collapse; margin:.6rem 0; font-size:.85rem; }
+  th { background:#161b22; color:#58a6ff; text-align:left; padding:.4rem .6rem; border:1px solid #30363d; }
+  td { padding:.3rem .6rem; border:1px solid #30363d; }
+  tr:nth-child(even) { background:#161b22; }
+  pre { background:#161b22; padding:.8rem; border-radius:8px; overflow-x:auto; margin:.5rem 0; border:1px solid #30363d; font-size:.85rem; color:#c9d1d9; }
+  code { background:#161b22; color:#f0883e; padding:2px 5px; border-radius:4px; font-size:.85rem; }
+  .badge { display:inline-block; background:#238636; color:#fff; padding:2px 8px; border-radius:12px; font-size:.75rem; font-weight:600; }
+  .section { background:#161b22; border:1px solid #30363d; border-radius:12px; padding:1.2rem; margin:1rem 0; }
+  .pass { color:#3fb950; font-weight:600; }
+  .important { background:#1a2332; border:1px solid #58a6ff; border-radius:8px; padding:.8rem 1rem; margin:.8rem 0; text-align:center; }
+  .tip { background:#0d2818; border:1px solid #238636; border-radius:8px; padding:.6rem .8rem; margin:.5rem 0; font-size:.9rem; }
+  hr { border:none; border-top:1px solid #30363d; margin:1.2rem 0; }
+</style>
+</head>
+<body>
+
+<h1>🔍 Đánh Giá Tiến Độ Dự Án — CE2024 Module 2</h1>
+
+<div class="important">
+  <span style="font-size:1.3rem;">✅</span> <b style="color:#3fb950; font-size:1.1rem;">Dự án ĐÃ SẴN SÀNG để trình bày</b><br>
+  <span style="color:#8b949e;">Tất cả 17/17 hạng mục đều hoàn chỉnh và có bằng chứng rõ ràng.</span>
+</div>
+
+<hr>
+
+<div class="section">
+<h2>1. RTL (Phần cứng) <span class="pass">✅ HOÀN CHỈNH</span></h2>
+<table>
+<tr><th>Hạng mục</th><th>Trạng thái</th><th>File</th></tr>
+<tr><td>I2C Master module</td><td class="pass">✅ 502 dòng, FSM 14 states</td><td><code>rtl/obi_i2c/obi_i2c.sv</code></td></tr>
+<tr><td>Register file I2C</td><td class="pass">✅</td><td><code>obi_i2c_reg_pkg.sv</code>, <code>obi_i2c_reg_top.sv</code></td></tr>
+<tr><td>Address map</td><td class="pass">✅ PeriphI2C = 9, 0x0300_C000</td><td><code>rtl/croc_pkg.sv</code></td></tr>
+<tr><td>Kết nối bus OBI</td><td class="pass">✅ Instance trong croc_domain</td><td><code>rtl/croc_domain.sv</code></td></tr>
+<tr><td>Interrupt routing</td><td class="pass">✅ interrupts[4] = i2c_irq</td><td><code>rtl/croc_domain.sv</code></td></tr>
+<tr><td>I/O Pad bidirectional</td><td class="pass">✅ sg13g2_IOPadInOut30mA</td><td><code>rtl/croc_chip.sv</code></td></tr>
+</table>
+</div>
+
+<div class="section">
+<h2>2. Software (Firmware) <span class="pass">✅ HOÀN CHỈNH</span></h2>
+<table>
+<tr><th>Hạng mục</th><th>Trạng thái</th><th>File</th></tr>
+<tr><td>I2C driver header</td><td class="pass">✅ 6 registers, 5 commands</td><td><code>sw/lib/inc/i2c.h</code></td></tr>
+<tr><td>I2C driver source</td><td class="pass">✅ init, write, read, disable</td><td><code>sw/lib/src/i2c.c</code></td></tr>
+<tr><td>Config base address</td><td class="pass">✅ I2C_BASE_ADDR 0x0300C000</td><td><code>sw/config.h</code></td></tr>
+<tr><td>Demo firmware</td><td class="pass">✅ Register test + gửi "HELLO"</td><td><code>sw/hello_i2c.c</code></td></tr>
+<tr><td>Compiled binary</td><td class="pass">✅ hello_i2c.hex (12KB)</td><td><code>sw/bin/hello_i2c.hex</code></td></tr>
+</table>
+</div>
+
+<div class="section">
+<h2>3. Simulation <span class="pass">✅ HOÀN CHỈNH — CÓ BẰNG CHỨNG</span></h2>
+<table>
+<tr><th>Hạng mục</th><th>Trạng thái</th><th>File</th></tr>
+<tr><td>Testbench + Bus Monitor</td><td class="pass">✅ Passive monitor bắt START/STOP</td><td><code>rtl/test/tb_croc_soc.sv</code></td></tr>
+<tr><td>Open-drain bus model</td><td class="pass">✅</td><td><code>tb_croc_soc.sv</code></td></tr>
+<tr><td>Simulation log</td><td class="pass">✅ SUCCESS</td><td><code>verilator/croc.log</code></td></tr>
+<tr><td>Waveform file</td><td class="pass">✅ 25MB</td><td><code>verilator/croc.fst</code></td></tr>
+</table>
+
+<h3>Bằng chứng từ log:</h3>
+<pre>✅ PRE=0x27          → Prescaler ghi/đọc đúng
+✅ CTL=0x3           → Core enabled + interrupt enabled
+✅ TX=0xAB           → TX register write/readback đúng
+✅ [I2C] START       → Bus Monitor bắt được START condition
+✅ [I2C] STOP        → Bus Monitor bắt được STOP condition
+✅ 48 → 45 → 4C → 4C → 4F  → "HELLO" gửi thành công
+✅ SUCCESS           → Simulation pass</pre>
+</div>
+
+<div class="section">
+<h2>4. ASIC Flow <span class="pass">✅ HOÀN CHỈNH</span></h2>
+<table>
+<tr><th>Hạng mục</th><th>Trạng thái</th></tr>
+<tr><td>Synthesis (Yosys)</td><td class="pass">✅</td></tr>
+<tr><td>Floorplan</td><td class="pass">✅ report + hình</td></tr>
+<tr><td>Placement</td><td class="pass">✅ report + density map</td></tr>
+<tr><td>CTS</td><td class="pass">✅ clock tree report</td></tr>
+<tr><td>Routing</td><td class="pass">✅ congestion maps</td></tr>
+<tr><td>Final</td><td class="pass">✅ timing clean</td></tr>
+<tr><td>DRC</td><td class="pass">✅ chỉ 3 minor spacing violations</td></tr>
+</table>
+
+<h3>Timing Final:</h3>
+<table>
+<tr><th>Metric</th><th>Giá trị</th></tr>
+<tr><td>WNS</td><td><b class="pass">0.00</b></td></tr>
+<tr><td>TNS</td><td><b class="pass">0.00</b></td></tr>
+<tr><td>Setup violations</td><td><b class="pass">0</b></td></tr>
+<tr><td>Hold violations</td><td><b class="pass">0</b></td></tr>
+<tr><td>I2C Area</td><td>10,770 µm² (616 cells)</td></tr>
+<tr><td>Total Power</td><td>49.5 mW</td></tr>
+</table>
+</div>
+
+<div class="section">
+<h2>5. Git Repository <span class="pass">✅ ĐÃ PUSH</span></h2>
+<table>
+<tr><th>Hạng mục</th><th>Trạng thái</th></tr>
+<tr><td>Remote</td><td><code>github.com/trisavier/croc-design</code> ✅</td></tr>
+<tr><td>Branch</td><td><code>main</code> — up to date ✅</td></tr>
+<tr><td>Commits</td><td>3 commits: Initial → Update I2C → Hướng dẫn</td></tr>
+</table>
+</div>
+
+<hr>
+
+<div class="section">
+<h2>6. Checklist tổng hợp — 17/17 ✅</h2>
+<table>
+<tr><th>#</th><th>Hạng mục</th><th>OK</th></tr>
+<tr><td>1</td><td>RTL I2C module</td><td class="pass">✅</td></tr>
+<tr><td>2</td><td>Kết nối bus OBI + address map</td><td class="pass">✅</td></tr>
+<tr><td>3</td><td>Interrupt routing</td><td class="pass">✅</td></tr>
+<tr><td>4</td><td>I/O Pad (bidirectional)</td><td class="pass">✅</td></tr>
+<tr><td>5</td><td>Driver C (i2c.h + i2c.c)</td><td class="pass">✅</td></tr>
+<tr><td>6</td><td>Demo firmware (hello_i2c.c)</td><td class="pass">✅</td></tr>
+<tr><td>7</td><td>Compiled binary (.hex)</td><td class="pass">✅</td></tr>
+<tr><td>8</td><td>Testbench + Bus Monitor</td><td class="pass">✅</td></tr>
+<tr><td>9</td><td>Simulation log (SUCCESS)</td><td class="pass">✅</td></tr>
+<tr><td>10</td><td>Waveform file (.fst)</td><td class="pass">✅</td></tr>
+<tr><td>11</td><td>ASIC Synthesis (Yosys)</td><td class="pass">✅</td></tr>
+<tr><td>12</td><td>Place & Route (OpenROAD)</td><td class="pass">✅</td></tr>
+<tr><td>13</td><td>Timing clean (WNS=0, TNS=0)</td><td class="pass">✅</td></tr>
+<tr><td>14</td><td>Area/Power report</td><td class="pass">✅</td></tr>
+<tr><td>15</td><td>DRC report</td><td class="pass">✅ (3 minor)</td></tr>
+<tr><td>16</td><td>GitHub repo pushed</td><td class="pass">✅</td></tr>
+<tr><td>17</td><td>Bài thuyết trình</td><td class="pass">✅</td></tr>
+</table>
+</div>
+
+<div class="tip" style="margin-top:1.5rem;">
+  <b>💡 Gợi ý:</b> Chuẩn bị sẵn GTKWave mở file <code>croc.fst</code>, add signal <code>i2c_scl_bus</code> + <code>i2c_sda_bus</code> phòng thầy hỏi xem waveform.
+</div>
+
+</body>
+</html>

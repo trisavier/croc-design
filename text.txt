@@ -1,11 +1,54 @@
-# 1. Vào Docker
+# ==========================================
+# CÁC LỆNH DEMO DỰ ÁN CROC SOC - GIAO THỨC I2C
+# ==========================================
+
+# ------------------------------------------
+# BƯỚC 1: KHỞI ĐỘNG MÔI TRƯỜNG DOCKER & VNC
+# (Chạy ở Terminal góc ngoài của Ubuntu)
+# ------------------------------------------
+cd ~/eda/IIC-OSIC-TOOLS
+export DESIGNS=~/eda/designs
+./start_vnc.sh
 docker exec -it iic-osic-tools_xvnc_uid_1000 bash
 
-# 2. Build firmware
+# ==========================================
+# CÁC LỆNH DƯỚI ĐÂY CHẠY TRONG TERMINAL CỦA DOCKER
+# ==========================================
+
+# ------------------------------------------
+# BƯỚC 2: BIÊN DỊCH FIRMWARE (CODE C -> MÃ MÁY HEX)
+# ------------------------------------------
 cd /foss/designs/test1/croc/sw
 make clean && make
 
-# 3. Build & chạy simulation
+# ------------------------------------------
+# BƯỚC 3: CHẠY MÔ PHỎNG (Verilator)
+# ------------------------------------------
 cd /foss/designs/test1/croc/verilator
 ./run_verilator.sh --build
 ./run_verilator.sh --run ../sw/bin/hello_i2c.hex
+
+# ------------------------------------------
+# BƯỚC 4: XEM SÓNG MÔ PHỎNG (Waveform GTKWave)
+# ------------------------------------------
+gtkwave /foss/designs/test1/croc/verilator/croc.fst &
+
+# ------------------------------------------
+# BƯỚC 5: XEM BẢN VẼ VẬT LÝ CỦA CHIP (KLayout)
+# ------------------------------------------
+cd /foss/designs/test1/croc
+klayout -rr docs/open_klayout_gui.py &
+
+# ------------------------------------------
+# BƯỚC 6 (PHỤ LƯU): CHẠY LẠI BƯỚC PLACEMENT BẰNG OPENROAD
+# (Chỉ chạy nếu giảng viên yêu cầu demo backend)
+# ------------------------------------------
+cd /foss/designs/test1/croc/openroad
+./run_backend.sh --placement
+
+
+# Mở bằng trình duyệt Windows (Chrome/Edge) bài thuyết trình
+explorer.exe presentation.html
+
+# Mở bằng trình duyệt Windows (Chrome/Edge) báo cáo tiến độ
+explorer.exe project_review.html

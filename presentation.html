@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bài Thuyết Trình — CE2024 Module 2</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Inter',sans-serif; background:#0d1117; color:#c9d1d9; line-height:1.7; padding:2rem; max-width:960px; margin:0 auto; }
+  h1 { color:#58a6ff; font-size:1.8rem; border-bottom:2px solid #30363d; padding-bottom:.5rem; margin-bottom:1.5rem; }
+  h2 { color:#79c0ff; font-size:1.3rem; margin-top:2rem; margin-bottom:.8rem; border-left:4px solid #58a6ff; padding-left:.8rem; }
+  h3 { color:#d2a8ff; font-size:1.1rem; margin-top:1.2rem; margin-bottom:.5rem; }
+  p, li { margin-bottom:.4rem; }
+  ul { padding-left:1.5rem; }
+  table { width:100%; border-collapse:collapse; margin:.8rem 0; font-size:.9rem; }
+  th { background:#161b22; color:#58a6ff; text-align:left; padding:.5rem .8rem; border:1px solid #30363d; }
+  td { padding:.4rem .8rem; border:1px solid #30363d; }
+  tr:nth-child(even) { background:#161b22; }
+  .highlight { background:#1f2937; border-left:3px solid #f0883e; padding:.3rem .8rem; margin:.5rem 0; }
+  blockquote { border-left:3px solid #3fb950; padding:.5rem 1rem; margin:.8rem 0; background:#0d1117; color:#8b949e; font-style:italic; }
+  code { background:#161b22; color:#f0883e; padding:2px 6px; border-radius:4px; font-size:.85rem; }
+  pre { background:#161b22; padding:1rem; border-radius:8px; overflow-x:auto; margin:.8rem 0; border:1px solid #30363d; }
+  pre code { background:none; color:#c9d1d9; }
+  .badge { display:inline-block; background:#238636; color:#fff; padding:2px 8px; border-radius:12px; font-size:.75rem; font-weight:600; }
+  .badge-blue { background:#1f6feb; }
+  .section { background:#161b22; border:1px solid #30363d; border-radius:12px; padding:1.5rem; margin:1.5rem 0; }
+  .tip { background:#0d2818; border:1px solid #238636; border-radius:8px; padding:.8rem 1rem; margin:.8rem 0; }
+  .warn { background:#2d1b00; border:1px solid #f0883e; border-radius:8px; padding:.8rem 1rem; margin:.8rem 0; }
+  hr { border:none; border-top:1px solid #30363d; margin:1.5rem 0; }
+  .star { color:#f0883e; }
+</style>
+</head>
+<body>
+
+<h1>🎓 Bài Thuyết Trình — Final Project CE2024 Module 2</h1>
+<p style="color:#8b949e;">Tích hợp I2C Master Peripheral vào SoC RISC-V CROC &nbsp;|&nbsp; <span class="badge badge-blue">10–12 phút</span> &nbsp;|&nbsp; Repo: github.com/trisavier/croc-design</p>
+
+<hr>
+
+<div class="section">
+<h2>📋 SLIDE 1 — Tổng quan dự án (2 phút)</h2>
+
+<blockquote>
+"Dạ thưa thầy/cô, đề tài của em là <b>tích hợp ngoại vi I2C Master vào SoC RISC-V có sẵn</b>, cụ thể là platform CROC của PULP Platform (ETH Zurich).<br><br>
+Em <b>không thiết kế SoC từ đầu</b>, mà chọn cách tiếp cận thực tế hơn — giống quy trình công nghiệp — là nhận một SoC base rồi mở rộng thêm ngoại vi."
+</blockquote>
+
+<table>
+<tr><th>Thành phần</th><th>Chi tiết</th></tr>
+<tr><td>SoC base</td><td>pulp-platform/croc (ETH Zurich)</td></tr>
+<tr><td>CPU Core</td><td>CV32E40P (RISC-V RV32IMC)</td></tr>
+<tr><td>Bus</td><td>OBI (Open Bus Interface)</td></tr>
+<tr><td>Clock</td><td>100 MHz target (10ns period)</td></tr>
+<tr><td>PDK</td><td>IHP SG13G2 (130nm BiCMOS)</td></tr>
+<tr><td>Ngoại vi thêm</td><td>I2C Master (Standard 100kHz / Fast 400kHz)</td></tr>
+</table>
+
+<h3>Lý do chọn hướng tích hợp:</h3>
+<ul>
+<li>Gần với workflow thực tế trong industry (IP integration)</li>
+<li>Phải hiểu bus protocol, address map, interrupt routing</li>
+<li>Chứng minh khả năng đọc hiểu và sửa đổi RTL có sẵn</li>
+</ul>
+</div>
+
+<div class="section">
+<h2>📋 SLIDE 2 — Kiến trúc tích hợp (3 phút)</h2>
+
+<h3>2.1 — Address Map (Memory-Mapped I/O)</h3>
+<table>
+<tr><th>Peripheral</th><th>Address Range</th></tr>
+<tr><td>Debug Module</td><td>0x0000_0000 – 0x0004_0000</td></tr>
+<tr><td>Boot ROM</td><td>0x0200_0000 – 0x0200_4000</td></tr>
+<tr><td>CLINT</td><td>0x0204_0000 – 0x0208_0000</td></tr>
+<tr><td>SoC Control</td><td>0x0300_0000 – 0x0300_1000</td></tr>
+<tr><td>UART</td><td>0x0300_2000 – 0x0300_3000</td></tr>
+<tr><td>GPIO</td><td>0x0300_5000 – 0x0300_6000</td></tr>
+<tr><td>Timer</td><td>0x0300_A000 – 0x0300_B000</td></tr>
+<tr><td>iDMA</td><td>0x0300_B000 – 0x0300_C000</td></tr>
+<tr style="background:#1a2332;"><td><span class="star">★</span> <b>I2C Master</b></td><td><b>0x0300_C000 – 0x0300_D000</b> ← MỚI</td></tr>
+</table>
+
+<h3>2.2 — Interrupt Routing</h3>
+<pre><code>interrupts[0] = obi_timer_irq
+interrupts[1] = uart_irq
+interrupts[2] = gpio_irq
+interrupts[3] = idma_irq
+interrupts[4] = i2c_irq       ← MỚI — nối trực tiếp vào CV32E40P</code></pre>
+
+<h3>2.3 — I2C Module Instance</h3>
+<pre><code>obi_i2c #(
+  .ObiCfg    ( SbrObiCfg     ),
+  .obi_req_t ( sbr_obi_req_t ),
+  .obi_rsp_t ( sbr_obi_rsp_t )
+) i_i2c (
+  .clk_i, .rst_ni,
+  .obi_req_i ( i2c_obi_req ),    // từ peripheral demux
+  .obi_rsp_o ( i2c_obi_rsp ),    // trả response về bus
+  .irq_o     ( i2c_irq     ),    // interrupt → CPU
+  .scl_o, .scl_oe_o, .scl_i,    // SCL pad interface
+  .sda_o, .sda_oe_o, .sda_i     // SDA pad interface
+);</code></pre>
+
+<h3>2.4 — I/O Pad (Open-Drain)</h3>
+<pre><code>scl_o    = 1'b0                 // luôn drive LOW khi enabled
+scl_oe_o = ~scl_out_q & i2c_en // OE=1 → kéo LOW; OE=0 → thả (pull-up)</code></pre>
+
+<h3>2.5 — FSM điều khiển I2C (14 states)</h3>
+<pre><code>ST_IDLE → ST_START_A → ST_START_B
+       → ST_WRITE_BIT ↔ ST_WRITE_WAIT → ST_ACK_READ → ST_ACK_RWAIT
+       → ST_READ_BIT  ↔ ST_READ_WAIT  → ST_ACK_SEND → ST_ACK_WAIT
+       → ST_STOP_A    → ST_STOP_B     → ST_STOP_C   → ST_IDLE</code></pre>
+</div>
+
+<div class="section">
+<h2>📋 SLIDE 3 — Kết quả RTL & Simulation (2 phút)</h2>
+
+<h3>3.1 — Kết quả mô phỏng (UART console + Bus Monitor)</h3>
+<pre><code>[UART] === I2C HELLO Demo ===
+[UART] Init I2C...
+[UART] PRE=0x27        ← Prescaler = 39 → SCL = 20MHz/(5×40) = 100kHz
+[UART] CTL=0x3         ← Control: Enable + Interrupt Enable
+[UART] TX=0xAB         ← Ghi/đọc thanh ghi TX đúng
+[UART] STS=0x0         ← Status idle, sẵn sàng
+[UART] I2C OK
+
+<span style="color:#3fb950">[I2C] === START condition ===     ← Bus Monitor phát hiện START</span>
+[UART]  48:ACK                    ← 0x48 = 'H'
+[UART]  45:ACK                    ← 0x45 = 'E'
+[UART]  4C:ACK                    ← 0x4C = 'L'
+[UART]  4C:ACK                    ← 0x4C = 'L'
+[UART]  4F:ACK                    ← 0x4F = 'O'
+<span style="color:#3fb950">[I2C] === STOP condition ===      ← Bus Monitor phát hiện STOP</span>
+
+<span style="color:#58a6ff">[JTAG] Simulation finished: SUCCESS</span></code></pre>
+
+<h3>3.2 — Waveform GTKWave xác nhận:</h3>
+<ul>
+<li><b>SCL</b>: xung clock đều, đúng tần số</li>
+<li><b>SDA</b>: thay đổi khi SCL LOW, stable khi SCL HIGH</li>
+<li><b>START</b>: SDA ↓ trong khi SCL HIGH</li>
+<li><b>STOP</b>: SDA ↑ trong khi SCL HIGH</li>
+<li><b>Interrupt</b>: <code>irq_o</code> assert sau mỗi byte transfer</li>
+</ul>
+</div>
+
+<div class="section">
+<h2>📋 SLIDE 4 — ASIC Flow IHP 130nm (3 phút)</h2>
+
+<h3>4.1 — Toolchain</h3>
+<pre><code>RTL (SystemVerilog)
+    │  Yosys (Logic Synthesis)
+Gate-level Netlist
+    │  OpenROAD (Floorplan → Place → CTS → Route)
+    │  01_floorplan → 02_placed → 03_cts → 04_routed → 05_final
+    │  KLayout (GDSII Export)
+Physical Layout → Tapeout-ready</code></pre>
+
+<h3>4.2 — Timing Report (Final) ✅</h3>
+<table>
+<tr><th>Metric</th><th>Giá trị</th><th>Đánh giá</th></tr>
+<tr><td>WNS</td><td><b>0.00 ns</b></td><td><span class="badge">✅ PASS</span></td></tr>
+<tr><td>TNS</td><td><b>0.00 ns</b></td><td><span class="badge">✅ PASS</span></td></tr>
+<tr><td>Worst Slack (max)</td><td><b>1.23 ns</b></td><td>Positive margin</td></tr>
+<tr><td>Critical Path Delay</td><td>2.19 ns</td><td>—</td></tr>
+<tr><td>Setup Violations</td><td><b>0</b></td><td><span class="badge">✅ PASS</span></td></tr>
+<tr><td>Hold Violations</td><td><b>0</b></td><td><span class="badge">✅ PASS</span></td></tr>
+</table>
+
+<h3>4.3 — Area Report</h3>
+<table>
+<tr><th>Metric</th><th>Giá trị</th></tr>
+<tr><td>Die Area</td><td>3,671,056 µm² (≈ 1.92mm × 1.92mm)</td></tr>
+<tr><td>Core Area</td><td>1,571,082 µm²</td></tr>
+<tr><td>Core Utilization</td><td>53.8%</td></tr>
+</table>
+
+<h3>Phân bổ area theo block:</h3>
+<table>
+<tr><th>Block</th><th>Area (µm²)</th><th>Cells</th></tr>
+<tr><td>CV32E40P Core</td><td>227,304</td><td>13,548</td></tr>
+<tr><td>SRAM Banks (×2)</td><td>304,469</td><td>461</td></tr>
+<tr><td>Debug Module</td><td>78,926</td><td>5,487</td></tr>
+<tr><td>UART</td><td>47,795</td><td>2,434</td></tr>
+<tr><td>GPIO</td><td>28,791</td><td>1,546</td></tr>
+<tr style="background:#1a2332;"><td><span class="star">★</span> <b>I2C Master</b></td><td><b>10,770</b></td><td><b>616</b></td></tr>
+<tr><td>Timer</td><td>10,654</td><td>623</td></tr>
+</table>
+
+<h3>4.4 — Power Report</h3>
+<table>
+<tr><th>Category</th><th>Power (mW)</th><th>%</th></tr>
+<tr><td>Sequential</td><td>22.9</td><td>46.3%</td></tr>
+<tr><td>Macro (SRAM)</td><td>16.0</td><td>32.3%</td></tr>
+<tr><td>Clock Network</td><td>6.56</td><td>13.3%</td></tr>
+<tr><td>Pad</td><td>3.14</td><td>6.3%</td></tr>
+<tr><td>Combinational</td><td>0.87</td><td>1.8%</td></tr>
+<tr style="background:#1a2332;"><td><b>Total</b></td><td><b>49.5</b></td><td><b>100%</b></td></tr>
+</table>
+
+<h3>4.5 — DRC: chỉ 3 minor Metal Spacing violations (non-critical)</h3>
+</div>
+
+<div class="section">
+<h2>📋 SLIDE 5 — Kết luận (1 phút)</h2>
+<blockquote>
+"Tóm lại, dự án đã chứng minh khả năng <b>tích hợp ngoại vi vào SoC thực tế</b> sử dụng hoàn toàn công cụ EDA mã nguồn mở:<br><br>
+• <b>RTL</b>: viết I2C Master bằng SystemVerilog, tích hợp qua OBI bus<br>
+• <b>Verification</b>: mô phỏng Verilator với firmware C, xác nhận bằng Bus Monitor<br>
+• <b>ASIC</b>: full flow Yosys → OpenROAD → KLayout trên PDK IHP 130nm<br>
+• <b>Kết quả</b>: WNS/TNS = 0, I2C chiếm 10,770 µm² (616 cells)<br><br>
+Repo: github.com/trisavier/croc-design. Em xin hết ạ."
+</blockquote>
+</div>
+
+<hr>
+
+<div class="section">
+<h2>🛡️ CHUẨN BỊ TRẢ LỜI CÂU HỎI KỸ THUẬT</h2>
+
+<h3>❓ Q1: OBI Bus Protocol là gì? Tại sao không dùng AXI hay APB?</h3>
+<div class="tip">
+OBI — Open Bus Interface — do PULP Platform phát triển, tối ưu cho SoC nhỏ RISC-V. Chỉ cần <code>req</code>, <code>gnt</code>, <code>rvalid</code> — đơn giản hơn AXI nhiều. SoC CROC đã dùng OBI sẵn, nên giữ nhất quán. Dùng APB phải thêm bridge → tốn area.
+</div>
+
+<h3>❓ Q2: I2C FSM hoạt động như thế nào?</h3>
+<div class="tip">
+14 states, mỗi SCL cycle chia 5 phase. Flow WRITE: IDLE → START_A/B → WRITE_BIT/WAIT (×8) → ACK_READ/RWAIT → IDLE hoặc STOP. Prescaler: <code>PRE = Fclk / (5 × Fscl) − 1</code>. Ví dụ: 20MHz / (5 × 100kHz) − 1 = 39.
+</div>
+
+<h3>❓ Q3: Timing closure — tại sao WNS = 0?</h3>
+<div class="tip">
+WNS = 0 = không path nào vi phạm. Worst slack +1.23 ns. Critical path qua debug module, không phải I2C. CTS + post-route optimization tự chèn buffer. Final: 0 setup/hold violations.
+</div>
+
+<h3>❓ Q4: Tại sao chọn IHP 130nm thay vì SkyWater 130nm?</h3>
+<div class="tip">
+(1) CROC được thiết kế sẵn cho IHP — có scripts, constraints, pad ring. (2) IHP SG13G2 có standard cell library hoàn chỉnh với multi-corner timing. (3) IHP hỗ trợ MPW miễn phí cho nghiên cứu/giáo dục.
+</div>
+
+<h3>❓ Q5: Lỗi slew/fanout/cap violations?</h3>
+<div class="tip">
+Chủ yếu ở I/O pad connections (capacitance ~15pF). Không ảnh hưởng timing closure (WNS/TNS = 0). Production sẽ thêm I/O buffer cells.
+</div>
+
+<h3>❓ Q6: Arbitration Lost trong sim?</h3>
+<div class="tip">
+2-stage synchronizer gây trễ 2 clock → master đọc SDA cũ → false positive. Trên HW thật, I2C clock (100kHz) rất chậm so với sys clock → không xảy ra. Dùng <code>sim_wait_tip()</code> workaround.
+</div>
+
+<h3>❓ Q7: 3 DRC violations fix được không?</h3>
+<div class="tip">
+Metal Spacing trên Metal4, gần SRAM macro. Fix bằng tăng halo hoặc manual ECO. Trong academic context, 3 minor violations trên chip 3.67 mm² là chấp nhận được.
+</div>
+</div>
+
+<hr>
+<div class="section">
+<h2>📊 TÓM TẮT SỐ LIỆU — Quick Reference</h2>
+<table>
+<tr><th>Metric</th><th>Giá trị</th></tr>
+<tr><td>SoC</td><td>CROC (PULP Platform)</td></tr>
+<tr><td>CPU</td><td>CV32E40P — RV32IMC</td></tr>
+<tr><td>PDK</td><td>IHP SG13G2 130nm</td></tr>
+<tr><td>I2C Area</td><td>10,770 µm² / 616 cells</td></tr>
+<tr><td>Total Die</td><td>3,671,056 µm² (≈ 1.92 × 1.92 mm)</td></tr>
+<tr><td>WNS / TNS</td><td>0.00 / 0.00</td></tr>
+<tr><td>Setup / Hold violations</td><td>0 / 0</td></tr>
+<tr><td>Total Power</td><td>49.5 mW</td></tr>
+<tr><td>DRC violations</td><td>3 (Metal Spacing, non-critical)</td></tr>
+<tr><td>I2C Speed</td><td>100kHz (Standard) / 400kHz (Fast)</td></tr>
+<tr><td>FSM States</td><td>14 states</td></tr>
+<tr><td>Prescaler</td><td>PRE = Fclk / (5 × Fscl) − 1</td></tr>
+<tr><td>I2C Base Address</td><td>0x0300_C000</td></tr>
+<tr><td>Interrupt Line</td><td>interrupts[4]</td></tr>
+</table>
+</div>
+
+</body>
+</html>
